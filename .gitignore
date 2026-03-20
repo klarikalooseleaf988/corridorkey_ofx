@@ -1,0 +1,41 @@
+# Build
+build/
+cmake-build-*/
+*.obj
+*.lib
+*.dll
+*.exp
+*.pdb
+*.ilk
+*.ofx
+
+# IDE
+.vs/
+.vscode/
+*.suo
+*.user
+*.sln.docstates
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+*.egg
+venv/
+.venv/
+
+# Models (large files)
+*.pth
+*.onnx
+*.bin
+models/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Claude
+.claude/

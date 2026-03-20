@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "corridorkey-resolve-backend"
+version = "0.1.0"
+description = "Python inference backend for CorridorKey for Resolve OFX plugin"
+license = "CC-BY-NC-SA-4.0"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.1.0",
+    "torchvision>=0.16.0",
+    "numpy>=1.24.0",
+    "Pillow>=10.0.0",
+    "corridorkey",
+    "birefnet",
+]
+
+[project.scripts]
+corridorkey-backend = "server:main"
+
+[tool.setuptools]
+py-modules = ["server", "ipc_protocol", "inference_wrapper"]
+
+[tool.setuptools.package-dir]
+"" = "."

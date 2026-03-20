@@ -1,0 +1,23 @@
+{
+    "plugin_name": "CorridorKeyForResolve",
+    "plugin_identifier": "com.corridordigital.corridorkey",
+    "version": "1.0.0",
+    "ofx_install_path": "C:\\Program Files\\Common Files\\OFX\\Plugins",
+    "backend_install_path": "%APPDATA%\\CorridorKeyForResolve",
+    "models": {
+        "corridorkey_v1": {
+            "url": "https://huggingface.co/CorridorDigital/corridorkey/resolve/main/corridorkey_v1.pth",
+            "filename": "corridorkey_v1.pth",
+            "size_mb": 300
+        },
+        "birefnet_general": {
+            "url": "https://huggingface.co/ZhengPeng7/BiRefNet-general",
+            "type": "huggingface_repo",
+            "size_mb": 100
+        }
+    },
+    "python_requirements": {
+        "min_version": "3.10",
+        "torch_index_url": "https://download.pytorch.org/whl/cu121"
+    }
+}
