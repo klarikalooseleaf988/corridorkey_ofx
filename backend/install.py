@@ -8,6 +8,8 @@ virtual environment, and installs dependencies.
 import os
 import subprocess
 import sys
+import urllib.request
+import zipfile
 from pathlib import Path
 
 APPDATA_DIR = Path(os.environ.get("APPDATA", "")) / "CorridorKeyForResolve"
@@ -15,7 +17,7 @@ MODELS_DIR = APPDATA_DIR / "models"
 VENV_DIR = APPDATA_DIR / "venv"
 CORRIDORKEY_REPO_DIR = APPDATA_DIR / "CorridorKey"
 
-CORRIDORKEY_REPO_URL = "https://github.com/nikopueringer/CorridorKey.git"
+CORRIDORKEY_ZIP_URL = "https://github.com/nikopueringer/CorridorKey/archive/refs/heads/main.zip"
 
 
 def ensure_dir(path: Path) -> None:
@@ -44,23 +46,36 @@ def setup_venv() -> Path:
     return python
 
 
-def clone_corridorkey() -> None:
-    """Clone the CorridorKey repository."""
-    if CORRIDORKEY_REPO_DIR.exists():
-        print(f"  CorridorKey repo already exists at {CORRIDORKEY_REPO_DIR}")
-        # Pull latest
-        subprocess.run(
-            ["git", "-C", str(CORRIDORKEY_REPO_DIR), "pull"],
-            check=False,
-        )
+def download_corridorkey() -> None:
+    """Download the CorridorKey repository as a zip (no Git required)."""
+    if (CORRIDORKEY_REPO_DIR / "CorridorKeyModule" / "inference_engine.py").exists():
+        print(f"  CorridorKey already exists at {CORRIDORKEY_REPO_DIR}")
         return
 
-    print(f"  Cloning CorridorKey to {CORRIDORKEY_REPO_DIR}...")
-    subprocess.check_call([
-        "git", "clone", "--depth", "1",
-        CORRIDORKEY_REPO_URL, str(CORRIDORKEY_REPO_DIR),
-    ])
-    print("  CorridorKey cloned successfully")
+    zip_path = APPDATA_DIR / "corridorkey_download.zip"
+    print(f"  Downloading CorridorKey...")
+    urllib.request.urlretrieve(CORRIDORKEY_ZIP_URL, str(zip_path))
+
+    print(f"  Extracting...")
+    temp_dir = APPDATA_DIR / "ck_temp"
+    with zipfile.ZipFile(str(zip_path), 'r') as zf:
+        zf.extractall(str(temp_dir))
+
+    # GitHub zips contain a folder like CorridorKey-main
+    extracted = list(temp_dir.glob("CorridorKey*"))
+    if extracted:
+        if CORRIDORKEY_REPO_DIR.exists():
+            import shutil
+            shutil.rmtree(str(CORRIDORKEY_REPO_DIR))
+        extracted[0].rename(CORRIDORKEY_REPO_DIR)
+
+    # Cleanup
+    if temp_dir.exists():
+        import shutil
+        shutil.rmtree(str(temp_dir))
+    zip_path.unlink(missing_ok=True)
+
+    print("  CorridorKey downloaded successfully")
 
 
 def install_dependencies(python: Path) -> None:
@@ -142,9 +157,9 @@ def main():
     python = setup_venv()
     print()
 
-    # Step 2: Clone CorridorKey
-    print("[2/5] Cloning CorridorKey repository...")
-    clone_corridorkey()
+    # Step 2: Download CorridorKey
+    print("[2/5] Downloading CorridorKey...")
+    download_corridorkey()
     print()
 
     # Step 3: Install dependencies

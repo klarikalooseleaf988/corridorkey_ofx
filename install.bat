@@ -6,6 +6,8 @@ setlocal enabledelayedexpansion
 :: ============================================================
 :: This script installs everything needed to run CorridorKey
 :: in DaVinci Resolve. Just double-click to run.
+::
+:: Requirements: Python 3.10-3.13, NVIDIA GPU with CUDA
 :: ============================================================
 
 echo.
@@ -28,12 +30,12 @@ set "VENV_DIR=%APPDATA_DIR%\venv"
 set "CK_REPO_DIR=%APPDATA_DIR%\CorridorKey"
 set "OFX_DIR=C:\Program Files\Common Files\OFX\Plugins\CorridorKeyForResolve.ofx.bundle"
 set "SCRIPT_DIR=%~dp0"
-set "CK_REPO_URL=https://github.com/nikopueringer/CorridorKey.git"
+set "CK_ZIP_URL=https://github.com/nikopueringer/CorridorKey/archive/refs/heads/main.zip"
 
 :: --------------------------------------------------------
 :: Step 1: Find Python
 :: --------------------------------------------------------
-echo [1/6] Finding Python...
+echo [1/5] Finding Python...
 
 set "PYTHON_EXE="
 
@@ -72,23 +74,10 @@ for /f "tokens=2 delims= " %%v in ('"%PYTHON_EXE%" --version 2^>^&1') do set "PY
 echo   Version: %PY_VER%
 
 :: --------------------------------------------------------
-:: Step 2: Check for Git
+:: Step 2: Install OFX plugin bundle
 :: --------------------------------------------------------
 echo.
-echo [2/6] Checking for Git...
-where git >nul 2>&1
-if %errorlevel% neq 0 (
-    echo ERROR: Git not found.
-    echo Please install Git from https://git-scm.com/download/win
-    goto :error
-)
-echo   Git found.
-
-:: --------------------------------------------------------
-:: Step 3: Install OFX plugin bundle
-:: --------------------------------------------------------
-echo.
-echo [3/6] Installing OFX plugin...
+echo [2/5] Installing OFX plugin...
 
 :: Check if pre-built bundle exists in the repo
 if exist "%SCRIPT_DIR%plugin\build\CorridorKeyForResolve.ofx.bundle\Contents\Win64\CorridorKeyForResolve.ofx" (
@@ -122,10 +111,10 @@ if %errorlevel% neq 0 (
 echo   Plugin installed to: %OFX_DIR%
 
 :: --------------------------------------------------------
-:: Step 4: Create virtual environment
+:: Step 3: Create virtual environment
 :: --------------------------------------------------------
 echo.
-echo [4/6] Setting up Python environment...
+echo [3/5] Setting up Python environment...
 
 if not exist "%APPDATA_DIR%" mkdir "%APPDATA_DIR%"
 
@@ -144,23 +133,37 @@ if exist "%VENV_DIR%\Scripts\python.exe" (
 set "VENV_PYTHON=%VENV_DIR%\Scripts\python.exe"
 
 :: --------------------------------------------------------
-:: Step 5: Clone CorridorKey and install dependencies
+:: Step 4: Download CorridorKey and install dependencies
 :: --------------------------------------------------------
 echo.
-echo [5/6] Installing CorridorKey and dependencies...
+echo [4/5] Installing CorridorKey and dependencies...
 echo   This may take several minutes on first install.
 echo.
 
-if exist "%CK_REPO_DIR%\.git" (
-    echo   CorridorKey repo already cloned. Pulling latest...
-    git -C "%CK_REPO_DIR%" pull --quiet 2>nul
+if exist "%CK_REPO_DIR%\CorridorKeyModule\inference_engine.py" (
+    echo   CorridorKey already downloaded.
 ) else (
-    echo   Cloning CorridorKey repository...
-    git clone --depth 1 "%CK_REPO_URL%" "%CK_REPO_DIR%"
+    echo   Downloading CorridorKey...
+    set "CK_ZIP=%APPDATA_DIR%\corridorkey_download.zip"
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%CK_ZIP_URL%' -OutFile '!CK_ZIP!'"
     if %errorlevel% neq 0 (
-        echo ERROR: Failed to clone CorridorKey repository.
+        echo ERROR: Failed to download CorridorKey.
         goto :error
     )
+    echo   Extracting...
+    powershell -Command "Expand-Archive -Path '!CK_ZIP!' -DestinationPath '%APPDATA_DIR%\ck_temp' -Force"
+    if %errorlevel% neq 0 (
+        echo ERROR: Failed to extract CorridorKey.
+        goto :error
+    )
+    :: GitHub zips contain a folder like CorridorKey-main, rename it
+    for /d %%d in ("%APPDATA_DIR%\ck_temp\CorridorKey*") do (
+        if exist "%CK_REPO_DIR%" rmdir /S /Q "%CK_REPO_DIR%"
+        move "%%d" "%CK_REPO_DIR%" >nul
+    )
+    rmdir /S /Q "%APPDATA_DIR%\ck_temp" 2>nul
+    del "!CK_ZIP!" 2>nul
+    echo   CorridorKey downloaded successfully.
 )
 
 echo   Installing PyTorch with CUDA...
@@ -186,10 +189,10 @@ if %errorlevel% neq 0 (
 )
 
 :: --------------------------------------------------------
-:: Step 6: Copy backend files
+:: Step 5: Copy backend files
 :: --------------------------------------------------------
 echo.
-echo [6/6] Installing backend files...
+echo [5/5] Installing backend files...
 
 for %%f in (server.py ipc_protocol.py inference_wrapper.py) do (
     if exist "%SCRIPT_DIR%backend\%%f" (

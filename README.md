@@ -23,13 +23,11 @@ The backend auto-launches when you first apply the plugin in Resolve — no manu
 - DaVinci Resolve 20 (Free or Studio)
 - NVIDIA GPU with CUDA support (tested on RTX 4090)
 - Python 3.13 (3.14+ lacks PyTorch wheels)
-- Visual Studio 2022 Build Tools (for building the plugin)
-- CMake 3.20+
-- Git
+- Visual Studio 2022 Build Tools (only if building from source)
 
 ## Quick Install
 
-1. Install [Python 3.13](https://www.python.org/downloads/) (check "Add Python to PATH") and [Git](https://git-scm.com/download/win) if you don't have them
+1. Install [Python 3.13](https://www.python.org/downloads/) — check "Add Python to PATH" during setup
 2. Download the latest release from [GitHub Releases](https://github.com/gitcapoom/corridorkey_ofx/releases)
 3. Extract the zip
 4. Double-click **`install.bat`**
