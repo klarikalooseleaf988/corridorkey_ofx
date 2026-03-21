@@ -145,10 +145,10 @@ echo [4/6] Downloading CorridorKey...
 :: Download source code
 if exist "%CK_REPO_DIR%\CorridorKeyModule\inference_engine.py" goto :ck_src_ok
 echo   Downloading source code...
-powershell -Command "Invoke-WebRequest -Uri '%CK_ZIP_URL%' -OutFile '%APPDATA_DIR%\ck.zip'"
+powershell -Command "$ProgressPreference='SilentlyContinue'; (New-Object Net.WebClient).DownloadFile('%CK_ZIP_URL%','%APPDATA_DIR%\ck.zip')"
 if %errorlevel% neq 0 goto :download_error
 echo   Extracting...
-powershell -Command "Expand-Archive -Path '%APPDATA_DIR%\ck.zip' -DestinationPath '%APPDATA_DIR%\ck_temp' -Force"
+powershell -Command "$ProgressPreference='SilentlyContinue'; Expand-Archive -Path '%APPDATA_DIR%\ck.zip' -DestinationPath '%APPDATA_DIR%\ck_temp' -Force"
 for /d %%d in ("%APPDATA_DIR%\ck_temp\CorridorKey*") do move "%%d" "%CK_REPO_DIR%" >nul
 rmdir /S /Q "%APPDATA_DIR%\ck_temp" 2>nul
 del "%APPDATA_DIR%\ck.zip" 2>nul
@@ -166,7 +166,7 @@ set "CKPT_FILE=%CKPT_DIR%\CorridorKey_v1.0.pth"
 if exist "%CKPT_FILE%" goto :ck_model_ok
 echo   Downloading model weights (~400MB)...
 if not exist "%CKPT_DIR%" mkdir "%CKPT_DIR%"
-powershell -Command "Invoke-WebRequest -Uri '%CKPT_URL%' -OutFile '%CKPT_FILE%'"
+powershell -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('%CKPT_URL%','%CKPT_FILE%')"
 if %errorlevel% neq 0 goto :download_error
 echo   Model weights ready.
 goto :download_ok
