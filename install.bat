@@ -61,9 +61,14 @@ if %errorlevel% equ 0 (
     )
 )
 
-echo ERROR: Python not found.
-echo Please install Python 3.10-3.13 from https://www.python.org/downloads/
-echo Make sure to check "Add Python to PATH" during installation.
+echo.
+echo  ERROR: Python not found!
+echo.
+echo  Please install Python 3.10-3.13 from:
+echo    https://www.python.org/downloads/
+echo.
+echo  IMPORTANT: Check "Add Python to PATH" during installation.
+echo.
 goto :error
 
 :found_python
@@ -91,21 +96,26 @@ if exist "%SCRIPT_DIR%CorridorKeyForResolve.ofx.bundle\Contents\Win64\CorridorKe
     goto :install_bundle
 )
 
-echo ERROR: OFX plugin bundle not found.
-echo Expected at: %SCRIPT_DIR%CorridorKeyForResolve.ofx.bundle\
 echo.
-echo Download the latest release from:
-echo   https://github.com/gitcapoom/corridorkey_ofx/releases
+echo  ERROR: OFX plugin bundle not found!
 echo.
-echo Extract the .ofx.bundle folder next to this install.bat and run again.
+echo  Expected at: %SCRIPT_DIR%CorridorKeyForResolve.ofx.bundle\
+echo.
+echo  Download the latest release from:
+echo    https://github.com/gitcapoom/corridorkey_ofx/releases
+echo.
+echo  Extract the .ofx.bundle folder next to this install.bat and try again.
+echo.
 goto :error
 
 :install_bundle
 if not exist "%OFX_DIR%" mkdir "%OFX_DIR%"
 xcopy /E /Y /Q "%BUNDLE_SRC%" "%OFX_DIR%\" >nul
 if %errorlevel% neq 0 (
-    echo ERROR: Failed to copy OFX plugin. Is DaVinci Resolve running?
-    echo Close Resolve and try again.
+    echo.
+    echo  ERROR: Failed to copy OFX plugin.
+    echo  Is DaVinci Resolve running? Close it and try again.
+    echo.
     goto :error
 )
 echo   Plugin installed to: %OFX_DIR%
@@ -124,10 +134,13 @@ if exist "%VENV_DIR%\Scripts\python.exe" (
     echo   Creating virtual environment...
     "%PYTHON_EXE%" -m venv "%VENV_DIR%"
     if %errorlevel% neq 0 (
-        echo ERROR: Failed to create virtual environment.
+        echo.
+        echo  ERROR: Failed to create virtual environment.
+        echo  Make sure Python 3.10-3.13 is installed correctly.
+        echo.
         goto :error
     )
-    "%VENV_DIR%\Scripts\python.exe" -m pip install --upgrade pip --quiet
+    "%VENV_DIR%\Scripts\python.exe" -m pip install --upgrade pip >nul 2>&1
 )
 
 set "VENV_PYTHON=%VENV_DIR%\Scripts\python.exe"
@@ -140,6 +153,7 @@ echo [4/5] Installing CorridorKey and dependencies...
 echo   This may take several minutes on first install.
 echo.
 
+:: Download CorridorKey
 if exist "%CK_REPO_DIR%\CorridorKeyModule\inference_engine.py" (
     echo   CorridorKey already downloaded.
 ) else (
@@ -147,13 +161,13 @@ if exist "%CK_REPO_DIR%\CorridorKeyModule\inference_engine.py" (
     set "CK_ZIP=%APPDATA_DIR%\corridorkey_download.zip"
     powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%CK_ZIP_URL%' -OutFile '!CK_ZIP!'"
     if %errorlevel% neq 0 (
-        echo ERROR: Failed to download CorridorKey.
+        echo   ERROR: Failed to download CorridorKey. Check your internet connection.
         goto :error
     )
     echo   Extracting...
     powershell -Command "Expand-Archive -Path '!CK_ZIP!' -DestinationPath '%APPDATA_DIR%\ck_temp' -Force"
     if %errorlevel% neq 0 (
-        echo ERROR: Failed to extract CorridorKey.
+        echo   ERROR: Failed to extract CorridorKey.
         goto :error
     )
     :: GitHub zips contain a folder like CorridorKey-main, rename it
@@ -166,26 +180,50 @@ if exist "%CK_REPO_DIR%\CorridorKeyModule\inference_engine.py" (
     echo   CorridorKey downloaded successfully.
 )
 
-echo   Installing PyTorch with CUDA...
-"%VENV_PYTHON%" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124 --quiet
+:: Install PyTorch
+echo.
+echo   Installing PyTorch with CUDA (this is a large download ~2.5GB)...
+echo.
+"%VENV_PYTHON%" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 if %errorlevel% neq 0 (
-    echo ERROR: Failed to install PyTorch.
+    echo.
+    echo  -------------------------------------------------------
+    echo  PyTorch installation failed.
+    echo.
+    echo  Common causes:
+    echo    - No internet connection
+    echo    - Python version not supported (need 3.10-3.13)
+    echo    - Disk space (PyTorch needs ~3GB free)
+    echo    - Corporate firewall blocking download.pytorch.org
+    echo.
+    echo  Your Python version: %PY_VER%
+    echo  Venv Python: %VENV_PYTHON%
+    echo.
+    echo  To retry manually, run:
+    echo    "%VENV_PYTHON%" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+    echo  -------------------------------------------------------
+    echo.
     goto :error
 )
 
+:: Install Triton (non-critical)
 echo   Installing Triton for torch.compile...
-"%VENV_PYTHON%" -m pip install triton-windows --quiet 2>nul
+"%VENV_PYTHON%" -m pip install triton-windows >nul 2>&1
 if %errorlevel% neq 0 (
-    echo   Warning: Triton install failed. Performance will be reduced.
-    echo   You can install it manually later with:
-    echo     "%VENV_PYTHON%" -m pip install triton-windows
+    echo   Warning: Triton install failed. torch.compile will be slower.
+    echo   You can retry later: "%VENV_PYTHON%" -m pip install triton-windows
 )
 
+:: Install other dependencies
 echo   Installing other dependencies...
-"%VENV_PYTHON%" -m pip install numpy Pillow opencv-python timm transformers huggingface_hub --quiet
+"%VENV_PYTHON%" -m pip install numpy Pillow opencv-python timm transformers huggingface_hub
 if %errorlevel% neq 0 (
-    echo ERROR: Failed to install dependencies.
-    goto :error
+    echo.
+    echo  WARNING: Some dependencies failed to install.
+    echo  The plugin may not work correctly.
+    echo  Try running this installer again, or install manually:
+    echo    "%VENV_PYTHON%" -m pip install numpy Pillow opencv-python timm transformers huggingface_hub
+    echo.
 )
 
 :: --------------------------------------------------------
@@ -228,7 +266,8 @@ exit /b 0
 
 :error
 echo.
-echo Installation failed. See errors above.
+echo  Installation failed. See errors above.
+echo  You can re-run this installer after fixing the issue.
 echo.
 pause
 exit /b 1
