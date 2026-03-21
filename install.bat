@@ -199,7 +199,7 @@ if %errorlevel% neq 0 (
 )
 
 echo   Installing other dependencies...
-%PIP% install numpy Pillow opencv-python timm transformers huggingface_hub
+%PIP% install numpy Pillow opencv-python timm transformers huggingface_hub einops kornia
 if %errorlevel% neq 0 echo   WARNING: Some dependencies failed.
 
 echo   Installing Triton...
