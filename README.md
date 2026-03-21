@@ -27,7 +27,7 @@ The backend auto-launches when you first apply the plugin in Resolve — no manu
 
 ## Quick Install
 
-1. Install [Python 3.13](https://www.python.org/downloads/) — check "Add Python to PATH" during setup
+1. Install [Python 3.13](https://www.python.org/downloads/release/python-31312/) — check "Add Python to PATH" during setup
 2. Download the latest release from [GitHub Releases](https://github.com/gitcapoom/corridorkey_ofx/releases)
 3. Extract the zip
 4. Double-click **`install.bat`**

@@ -65,7 +65,7 @@ echo.
 echo  ERROR: Python not found!
 echo.
 echo  Please install Python 3.10-3.13 from:
-echo    https://www.python.org/downloads/
+echo    https://www.python.org/downloads/release/python-31312/
 echo.
 echo  IMPORTANT: Check "Add Python to PATH" during installation.
 echo.
@@ -94,7 +94,7 @@ echo  ERROR: Python %PY_VER% is not supported!
 echo.
 echo  PyTorch requires Python 3.10-3.13.
 echo  Please install Python 3.13 from:
-echo    https://www.python.org/downloads/release/python-3130/
+echo    https://www.python.org/downloads/release/python-31312/release/python-3130/
 echo.
 echo  You do NOT need to uninstall your current Python.
 echo  Just install 3.13 alongside it and re-run this installer.
