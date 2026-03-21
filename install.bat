@@ -171,7 +171,7 @@ set "VENV_PYTHON=%VENV_DIR%\Scripts\python.exe"
 :: Step 4: Download CorridorKey and install dependencies
 :: --------------------------------------------------------
 echo.
-echo [4/5] Installing CorridorKey and dependencies...
+echo [4/6] Installing CorridorKey and dependencies...
 echo   This may take several minutes on first install.
 
 :: Download CorridorKey
@@ -199,6 +199,28 @@ if exist "%CK_REPO_DIR%\CorridorKeyModule\inference_engine.py" (
     rmdir /S /Q "%APPDATA_DIR%\ck_temp" 2>nul
     del "!CK_ZIP!" 2>nul
     echo   CorridorKey downloaded successfully.
+)
+
+:: Download model weights
+set "CKPT_DIR=%CK_REPO_DIR%\CorridorKeyModule\checkpoints"
+set "CKPT_FILE=%CKPT_DIR%\CorridorKey_v1.0.pth"
+set "CKPT_URL=https://huggingface.co/nikopueringer/CorridorKey_v1.0/resolve/main/CorridorKey_v1.0.pth"
+
+if exist "%CKPT_FILE%" (
+    echo   Model weights already downloaded.
+) else (
+    echo.
+    echo   Downloading model weights (~400MB)...
+    if not exist "%CKPT_DIR%" mkdir "%CKPT_DIR%"
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%CKPT_URL%' -OutFile '%CKPT_FILE%'"
+    if %errorlevel% neq 0 (
+        echo   ERROR: Failed to download model weights.
+        echo   You can retry manually by visiting:
+        echo     https://huggingface.co/nikopueringer/CorridorKey_v1.0
+        echo   and placing the .pth file in: %CKPT_DIR%
+        goto :error
+    )
+    echo   Model weights downloaded successfully.
 )
 
 :: Install PyTorch with CUDA
@@ -257,7 +279,7 @@ if %errorlevel% neq 0 (
 :: Step 5: Copy backend files
 :: --------------------------------------------------------
 echo.
-echo [5/5] Installing backend files...
+echo [5/6] Installing backend files...
 
 set "BACKEND_COPIED=0"
 for %%f in (server.py ipc_protocol.py inference_wrapper.py) do (
@@ -285,6 +307,37 @@ if not exist "%APPDATA_DIR%\server.py" (
     echo.
     goto :error
 )
+
+:: --------------------------------------------------------
+:: Step 6: Verify installation
+:: --------------------------------------------------------
+echo.
+echo [6/6] Verifying installation...
+
+set "INSTALL_OK=1"
+if not exist "%OFX_DIR%\Contents\Win64\CorridorKeyForResolve.ofx" (
+    echo   MISSING: OFX plugin
+    set "INSTALL_OK=0"
+)
+if not exist "%APPDATA_DIR%\server.py" (
+    echo   MISSING: server.py
+    set "INSTALL_OK=0"
+)
+if not exist "%CKPT_FILE%" (
+    echo   MISSING: Model weights
+    set "INSTALL_OK=0"
+)
+if not exist "%VENV_DIR%\Scripts\python.exe" (
+    echo   MISSING: Python virtual environment
+    set "INSTALL_OK=0"
+)
+if "%INSTALL_OK%"=="0" (
+    echo.
+    echo  ERROR: Installation incomplete. See missing items above.
+    echo.
+    goto :error
+)
+echo   All components verified.
 
 :: --------------------------------------------------------
 :: Done!
