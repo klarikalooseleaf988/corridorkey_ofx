@@ -143,34 +143,36 @@ echo.
 echo [4/6] Downloading CorridorKey...
 
 :: Download source code
-if exist "%CK_REPO_DIR%\CorridorKeyModule\inference_engine.py" (
-    echo   Source code already downloaded.
-) else (
-    echo   Downloading source code...
-    powershell -Command "Invoke-WebRequest -Uri '%CK_ZIP_URL%' -OutFile '%APPDATA_DIR%\ck.zip'"
-    if %errorlevel% neq 0 goto :download_error
-    echo   Extracting...
-    powershell -Command "Expand-Archive -Path '%APPDATA_DIR%\ck.zip' -DestinationPath '%APPDATA_DIR%\ck_temp' -Force"
-    for /d %%d in ("%APPDATA_DIR%\ck_temp\CorridorKey*") do move "%%d" "%CK_REPO_DIR%" >nul
-    rmdir /S /Q "%APPDATA_DIR%\ck_temp" 2>nul
-    del "%APPDATA_DIR%\ck.zip" 2>nul
-    echo   Source code ready.
-)
+if exist "%CK_REPO_DIR%\CorridorKeyModule\inference_engine.py" goto :ck_src_ok
+echo   Downloading source code...
+powershell -Command "Invoke-WebRequest -Uri '%CK_ZIP_URL%' -OutFile '%APPDATA_DIR%\ck.zip'"
+if %errorlevel% neq 0 goto :download_error
+echo   Extracting...
+powershell -Command "Expand-Archive -Path '%APPDATA_DIR%\ck.zip' -DestinationPath '%APPDATA_DIR%\ck_temp' -Force"
+for /d %%d in ("%APPDATA_DIR%\ck_temp\CorridorKey*") do move "%%d" "%CK_REPO_DIR%" >nul
+rmdir /S /Q "%APPDATA_DIR%\ck_temp" 2>nul
+del "%APPDATA_DIR%\ck.zip" 2>nul
+echo   Source code ready.
+goto :ck_model
 
+:ck_src_ok
+echo   Source code already downloaded.
+
+:ck_model
 :: Download model weights
 set "CKPT_DIR=%CK_REPO_DIR%\CorridorKeyModule\checkpoints"
 set "CKPT_FILE=%CKPT_DIR%\CorridorKey_v1.0.pth"
 
-if exist "%CKPT_FILE%" (
-    echo   Model weights already downloaded.
-) else (
-    echo   Downloading model weights (~400MB)...
-    if not exist "%CKPT_DIR%" mkdir "%CKPT_DIR%"
-    powershell -Command "Invoke-WebRequest -Uri '%CKPT_URL%' -OutFile '%CKPT_FILE%'"
-    if %errorlevel% neq 0 goto :download_error
-    echo   Model weights ready.
-)
+if exist "%CKPT_FILE%" goto :ck_model_ok
+echo   Downloading model weights (~400MB)...
+if not exist "%CKPT_DIR%" mkdir "%CKPT_DIR%"
+powershell -Command "Invoke-WebRequest -Uri '%CKPT_URL%' -OutFile '%CKPT_FILE%'"
+if %errorlevel% neq 0 goto :download_error
+echo   Model weights ready.
+goto :download_ok
 
+:ck_model_ok
+echo   Model weights already downloaded.
 goto :download_ok
 
 :download_error
@@ -210,19 +212,15 @@ if %errorlevel% neq 0 echo   Warning: Triton unavailable. torch.compile will be 
 echo.
 echo [6/6] Installing backend files...
 
-set "MISSING="
-for %%f in (server.py ipc_protocol.py inference_wrapper.py) do (
-    if exist "%INSTALLER_DIR%backend\%%f" (
-        copy /Y "%INSTALLER_DIR%backend\%%f" "%APPDATA_DIR%\%%f" >nul
-        echo   Copied %%f
-    ) else (
-        echo   NOT FOUND: %INSTALLER_DIR%backend\%%f
-        set "MISSING=1"
-    )
-)
+copy /Y "%INSTALLER_DIR%backend\server.py" "%APPDATA_DIR%\server.py" >nul 2>&1
+copy /Y "%INSTALLER_DIR%backend\ipc_protocol.py" "%APPDATA_DIR%\ipc_protocol.py" >nul 2>&1
+copy /Y "%INSTALLER_DIR%backend\inference_wrapper.py" "%APPDATA_DIR%\inference_wrapper.py" >nul 2>&1
 
-if defined MISSING (
-    echo.
+if exist "%APPDATA_DIR%\server.py" echo   Copied server.py
+if exist "%APPDATA_DIR%\ipc_protocol.py" echo   Copied ipc_protocol.py
+if exist "%APPDATA_DIR%\inference_wrapper.py" echo   Copied inference_wrapper.py
+
+if not exist "%APPDATA_DIR%\server.py" (
     echo  ERROR: Backend files not found next to install.bat
     echo  Script location: %INSTALLER_DIR%
     goto :error
