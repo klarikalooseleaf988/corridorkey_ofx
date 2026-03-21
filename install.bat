@@ -20,16 +20,19 @@ echo.
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo Requesting administrator privileges...
-    powershell -Command "Start-Process cmd -ArgumentList '/c cd /d \"%~dp0\" && \"%~f0\"' -Verb RunAs"
+    powershell -Command "Start-Process '%~f0' -Verb RunAs"
     exit /b
 )
 
+:: Ensure we're in the script's directory (elevation can change cwd)
+cd /d "%~dp0"
+
 :: Configuration
+set "SCRIPT_DIR=%~dp0"
 set "APPDATA_DIR=%APPDATA%\CorridorKeyForResolve"
 set "VENV_DIR=%APPDATA_DIR%\venv"
 set "CK_REPO_DIR=%APPDATA_DIR%\CorridorKey"
 set "OFX_DIR=C:\Program Files\Common Files\OFX\Plugins\CorridorKeyForResolve.ofx.bundle"
-set "SCRIPT_DIR=%~dp0"
 set "CK_ZIP_URL=https://github.com/nikopueringer/CorridorKey/archive/refs/heads/main.zip"
 
 :: --------------------------------------------------------
@@ -271,12 +274,36 @@ if %errorlevel% neq 0 (
 :: --------------------------------------------------------
 echo.
 echo [5/5] Installing backend files...
+echo   Looking for backend files in: %SCRIPT_DIR%backend\
 
+set "BACKEND_COPIED=0"
 for %%f in (server.py ipc_protocol.py inference_wrapper.py) do (
     if exist "%SCRIPT_DIR%backend\%%f" (
         copy /Y "%SCRIPT_DIR%backend\%%f" "%APPDATA_DIR%\%%f" >nul
         echo   Copied %%f
+        set "BACKEND_COPIED=1"
+    ) else (
+        echo   WARNING: Not found: %SCRIPT_DIR%backend\%%f
     )
+)
+
+if "%BACKEND_COPIED%"=="0" (
+    echo.
+    echo  ERROR: No backend files were found!
+    echo  The installer could not find the backend\ folder.
+    echo  Make sure install.bat and the backend\ folder are in the same directory.
+    echo  Current script location: %SCRIPT_DIR%
+    echo.
+    goto :error
+)
+
+:: Verify critical file was copied
+if not exist "%APPDATA_DIR%\server.py" (
+    echo.
+    echo  ERROR: server.py was not copied to %APPDATA_DIR%
+    echo  Try copying manually from the backend\ folder in the zip.
+    echo.
+    goto :error
 )
 
 :: --------------------------------------------------------
