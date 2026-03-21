@@ -1,6 +1,8 @@
-# CorridorKey for Resolve
+# CorridorKey for Resolve (Windows)
 
 An OFX plugin that brings [CorridorKey](https://github.com/nikopueringer/CorridorKey) — Corridor Digital's AI-powered green screen keyer — into DaVinci Resolve 20 as a native plugin.
+
+> **Note:** This is a Windows-only release. The plugin uses Windows-specific APIs (named pipes, shared memory via `CreateFileMapping`) for IPC between the C++ plugin and Python backend.
 
 CorridorKey produces physically accurate foreground color unmixing with clean linear alpha channels. This plugin wraps the full inference engine, delivering a native Resolve experience backed by PyTorch on your GPU.
 
