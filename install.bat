@@ -153,8 +153,23 @@ echo [3/5] Setting up Python environment...
 
 if not exist "%APPDATA_DIR%" mkdir "%APPDATA_DIR%"
 
+:: Check if existing venv uses a compatible Python version
 if exist "%VENV_DIR%\Scripts\python.exe" (
-    echo   Virtual environment already exists.
+    for /f "tokens=2 delims= " %%v in ('"%VENV_DIR%\Scripts\python.exe" --version 2^>^&1') do set "VENV_PY_VER=%%v"
+    for /f "tokens=2 delims=." %%m in ("!VENV_PY_VER!") do set "VENV_PY_MINOR=%%m"
+    if !VENV_PY_MINOR! geq 14 (
+        echo   Existing venv uses Python !VENV_PY_VER! - recreating with 3.13...
+        rmdir /S /Q "%VENV_DIR%"
+    ) else if !VENV_PY_MINOR! lss 10 (
+        echo   Existing venv uses Python !VENV_PY_VER! - recreating with 3.13...
+        rmdir /S /Q "%VENV_DIR%"
+    ) else (
+        echo   Virtual environment already exists (Python !VENV_PY_VER!).
+    )
+)
+
+if exist "%VENV_DIR%\Scripts\python.exe" (
+    echo   Using existing virtual environment.
 ) else (
     echo   Creating virtual environment...
     "%PYTHON_EXE%" -m venv "%VENV_DIR%"
