@@ -59,6 +59,7 @@ public:
 
 private:
     bool ensureConnected();
+    bool launchBackend();
     ProcessFrameParams buildParams(double time);
 
     // Clips
@@ -80,6 +81,7 @@ private:
     std::unique_ptr<IPCClient> m_ipc;
     std::mutex m_ipcMutex;
     bool m_connected = false;
+    bool m_backendLaunched = false;
 };
 
 

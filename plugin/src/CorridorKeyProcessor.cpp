@@ -70,9 +70,11 @@ void CorridorKeyProcessor::process()
     if (result.success) {
         // Write processed output to destination image
         writeOutputPixels(outputBuffer.data(), 4);
+        m_succeeded = true;
     } else {
         // On failure, pass through source
         copyImage(m_srcImg, m_dstImg, m_renderWindow);
+        m_succeeded = false;
     }
 }
 

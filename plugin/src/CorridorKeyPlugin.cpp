@@ -1,6 +1,10 @@
 #include "CorridorKeyPlugin.h"
 #include "CorridorKeyProcessor.h"
 
+#include <thread>
+#include <chrono>
+#include <cstdlib>
+
 namespace corridorkey {
 
 // --- Plugin Factory ---
@@ -40,6 +44,7 @@ void CorridorKeyPluginFactory::describeInContext(
 {
     // Source clip (required)
     OFX::ClipDescriptor* srcClip = desc.defineClip(kOfxImageEffectSimpleSourceClipName);
+    srcClip->setLabel("Source");
     srcClip->addSupportedComponent(OFX::ePixelComponentRGBA);
     srcClip->addSupportedComponent(OFX::ePixelComponentRGB);
     srcClip->setTemporalClipAccess(false);
@@ -48,8 +53,8 @@ void CorridorKeyPluginFactory::describeInContext(
 
     // Alpha hint clip (optional)
     OFX::ClipDescriptor* alphaHintClip = desc.defineClip(kClipAlphaHint);
+    alphaHintClip->setLabel("Alpha Hint");
     alphaHintClip->addSupportedComponent(OFX::ePixelComponentRGBA);
-    alphaHintClip->addSupportedComponent(OFX::ePixelComponentRGB);
     alphaHintClip->addSupportedComponent(OFX::ePixelComponentAlpha);
     alphaHintClip->setTemporalClipAccess(false);
     alphaHintClip->setSupportsTiles(false);
@@ -190,23 +195,23 @@ CorridorKeyPlugin::~CorridorKeyPlugin()
 
 void CorridorKeyPlugin::render(const OFX::RenderArguments& args)
 {
-    // Check bit depth
-    OFX::BitDepthEnum dstBitDepth = m_dstClip->getPixelDepth();
-    if (dstBitDepth != OFX::eBitDepthFloat) {
-        OFX::throwSuiteStatusException(kOfxStatErrFormat);
-        return;
-    }
-
     // Fetch images
     std::unique_ptr<OFX::Image> dstImg(m_dstClip->fetchImage(args.time));
-    if (!dstImg) {
+    std::unique_ptr<OFX::Image> srcImg(m_srcClip->fetchImage(args.time));
+    if (!dstImg || !srcImg) {
         OFX::throwSuiteStatusException(kOfxStatFailed);
         return;
     }
 
-    std::unique_ptr<OFX::Image> srcImg(m_srcClip->fetchImage(args.time));
-    if (!srcImg) {
-        OFX::throwSuiteStatusException(kOfxStatFailed);
+    OfxRectI renderWindow = args.renderWindow;
+
+    // Check bit depth — need float32 for inference
+    OFX::BitDepthEnum dstBitDepth = dstImg->getPixelDepth();
+    if (dstBitDepth != OFX::eBitDepthFloat) {
+        setPersistentMessage(OFX::Message::eMessageError, "",
+            "CorridorKey requires 32-bit float processing. "
+            "Set project to float in Project Settings > Color Management.");
+        CorridorKeyProcessor::copyImage(srcImg.get(), dstImg.get(), renderWindow);
         return;
     }
 
@@ -221,11 +226,10 @@ void CorridorKeyPlugin::render(const OFX::RenderArguments& args)
     }
 
     // Get render window dimensions
-    OfxRectI renderWindow = args.renderWindow;
     int width = renderWindow.x2 - renderWindow.x1;
     int height = renderWindow.y2 - renderWindow.y1;
 
-    // Ensure backend connection
+    // Ensure backend connection (non-blocking: auto-launch happens in background)
     if (!ensureConnected()) {
         // Fallback: pass through source
         CorridorKeyProcessor::copyImage(srcImg.get(), dstImg.get(), renderWindow);
@@ -245,6 +249,13 @@ void CorridorKeyPlugin::render(const OFX::RenderArguments& args)
     processor.setParams(params);
     processor.setIPCClient(m_ipc.get());
     processor.process();
+
+    // If processing failed, reset connection so we reconnect next frame
+    if (!processor.succeeded()) {
+        std::lock_guard<std::mutex> lock(m_ipcMutex);
+        m_ipc->disconnect();
+        m_connected = false;
+    }
 }
 
 bool CorridorKeyPlugin::getRegionOfDefinition(
@@ -286,14 +297,70 @@ bool CorridorKeyPlugin::ensureConnected()
     }
 
     m_connected = m_ipc->connect();
+
+    if (!m_connected && !m_backendLaunched) {
+        // Auto-launch the backend process (non-blocking)
+        launchBackend();
+        // Return false for now — next render call will retry the connection
+        setPersistentMessage(OFX::Message::eMessageMessage, "",
+            "Starting CorridorKey backend...");
+        return false;
+    }
+
     if (!m_connected) {
         setPersistentMessage(OFX::Message::eMessageError, "",
             "Cannot connect to CorridorKey backend. "
-            "Please start the backend server (scripts/start_backend.bat).");
+            "Failed to auto-launch the backend server.");
     } else {
         clearPersistentMessage();
     }
     return m_connected;
+}
+
+bool CorridorKeyPlugin::launchBackend()
+{
+    // Build paths: %APPDATA%\CorridorKeyForResolve\venv\Scripts\python.exe
+    //              %APPDATA%\CorridorKeyForResolve\server.py
+    const char* appdata = std::getenv("APPDATA");
+    if (!appdata) return false;
+
+    std::string pythonPath = std::string(appdata) + "\\CorridorKeyForResolve\\venv\\Scripts\\python.exe";
+    std::string scriptPath = std::string(appdata) + "\\CorridorKeyForResolve\\server.py";
+
+    // Check that both files exist
+    DWORD pyAttr = GetFileAttributesA(pythonPath.c_str());
+    DWORD scriptAttr = GetFileAttributesA(scriptPath.c_str());
+    if (pyAttr == INVALID_FILE_ATTRIBUTES || scriptAttr == INVALID_FILE_ATTRIBUTES) {
+        return false;
+    }
+
+    // Build command line: "python.exe" "server.py"
+    std::string cmdLine = "\"" + pythonPath + "\" \"" + scriptPath + "\"";
+
+    STARTUPINFOA si = {};
+    si.cb = sizeof(si);
+    PROCESS_INFORMATION pi = {};
+
+    BOOL ok = CreateProcessA(
+        nullptr,
+        &cmdLine[0],       // command line (mutable)
+        nullptr, nullptr,  // security attributes
+        FALSE,             // inherit handles
+        DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+        nullptr,           // environment
+        nullptr,           // working directory
+        &si, &pi
+    );
+
+    if (ok) {
+        // Don't hold handles to the child process
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+        m_backendLaunched = true;
+        return true;
+    }
+
+    return false;
 }
 
 ProcessFrameParams CorridorKeyPlugin::buildParams(double time)

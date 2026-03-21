@@ -15,6 +15,7 @@ public:
     void setIPCClient(IPCClient* ipc);
 
     void process();
+    bool succeeded() const { return m_succeeded; }
 
     // Utility: copy source image to destination
     static void copyImage(OFX::Image* src, OFX::Image* dst, const OfxRectI& window);
@@ -31,6 +32,7 @@ private:
     OfxRectI m_renderWindow = {0, 0, 0, 0};
     ProcessFrameParams m_params;
     IPCClient* m_ipc = nullptr;
+    bool m_succeeded = false;
 };
 
 } // namespace corridorkey
