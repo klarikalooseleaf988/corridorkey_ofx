@@ -27,9 +27,18 @@ The backend auto-launches when you first apply the plugin in Resolve — no manu
 - CMake 3.20+
 - Git
 
-## Installation
+## Quick Install
 
-### 1. Build the C++ Plugin
+1. Install [Python 3.13](https://www.python.org/downloads/) (check "Add Python to PATH") and [Git](https://git-scm.com/download/win) if you don't have them
+2. Download the latest release from [GitHub Releases](https://github.com/gitcapoom/corridorkey_ofx/releases)
+3. Extract the zip
+4. Double-click **`install.bat`**
+
+The installer handles everything automatically: copies the OFX plugin, creates a Python environment, installs PyTorch + CUDA + Triton, clones CorridorKey, and downloads model weights.
+
+## Building from Source
+
+If you prefer to build the C++ plugin yourself instead of using the pre-built release:
 
 ```bash
 cd plugin
@@ -37,26 +46,7 @@ cmake -B build -G "Visual Studio 17 2022"
 cmake --build build --config Release
 ```
 
-### 2. Install the OFX Bundle
-
-Copy the built bundle to the system OFX directory (requires admin):
-
-```
-xcopy /E /Y plugin\build\CorridorKeyForResolve.ofx.bundle "C:\Program Files\Common Files\OFX\Plugins\CorridorKeyForResolve.ofx.bundle\"
-```
-
-### 3. Set Up the Python Backend
-
-Run the installer script which will:
-- Create a Python virtual environment
-- Clone the CorridorKey repository
-- Install all dependencies (PyTorch, Triton, BiRefNet, etc.)
-- Download model weights
-- Copy backend files
-
-```bash
-python backend/install.py
-```
+Then run `install.bat` or `python backend/install.py` to set up the backend.
 
 ### Dependencies Installed
 

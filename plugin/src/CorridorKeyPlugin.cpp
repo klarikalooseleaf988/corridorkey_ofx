@@ -54,8 +54,8 @@ void CorridorKeyPluginFactory::describeInContext(
     // Alpha hint clip (optional)
     OFX::ClipDescriptor* alphaHintClip = desc.defineClip(kClipAlphaHint);
     alphaHintClip->setLabel("Alpha Hint");
-    alphaHintClip->addSupportedComponent(OFX::ePixelComponentRGBA);
     alphaHintClip->addSupportedComponent(OFX::ePixelComponentAlpha);
+    alphaHintClip->addSupportedComponent(OFX::ePixelComponentRGBA);
     alphaHintClip->setTemporalClipAccess(false);
     alphaHintClip->setSupportsTiles(false);
     alphaHintClip->setIsMask(true);
@@ -277,6 +277,11 @@ void CorridorKeyPlugin::getClipPreferences(OFX::ClipPreferencesSetter& clipPrefe
 
     // Prefer RGBA float input
     clipPreferences.setClipComponents(*m_srcClip, OFX::ePixelComponentRGBA);
+
+    // AlphaHint prefers single-channel alpha
+    if (m_alphaHintClip) {
+        clipPreferences.setClipComponents(*m_alphaHintClip, OFX::ePixelComponentAlpha);
+    }
     clipPreferences.setClipBitDepth(*m_srcClip, OFX::eBitDepthFloat);
 }
 
