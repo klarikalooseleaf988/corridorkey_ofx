@@ -189,6 +189,7 @@ CorridorKeyPlugin::CorridorKeyPlugin(OfxImageEffectHandle handle)
 CorridorKeyPlugin::~CorridorKeyPlugin()
 {
     if (m_connected) {
+        m_ipc->shutdown();
         m_ipc->disconnect();
     }
 }
