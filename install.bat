@@ -78,6 +78,31 @@ echo   Found: %PYTHON_EXE%
 for /f "tokens=2 delims= " %%v in ('"%PYTHON_EXE%" --version 2^>^&1') do set "PY_VER=%%v"
 echo   Version: %PY_VER%
 
+:: Extract major.minor version and reject 3.14+
+for /f "tokens=1,2 delims=." %%a in ("%PY_VER%") do (
+    set "PY_MAJOR=%%a"
+    set "PY_MINOR=%%b"
+)
+if %PY_MAJOR% geq 4 goto :bad_python
+if %PY_MAJOR% equ 3 if %PY_MINOR% geq 14 goto :bad_python
+if %PY_MAJOR% equ 3 if %PY_MINOR% lss 10 goto :bad_python
+goto :python_ok
+
+:bad_python
+echo.
+echo  ERROR: Python %PY_VER% is not supported!
+echo.
+echo  PyTorch requires Python 3.10-3.13.
+echo  Please install Python 3.13 from:
+echo    https://www.python.org/downloads/release/python-3130/
+echo.
+echo  You do NOT need to uninstall your current Python.
+echo  Just install 3.13 alongside it and re-run this installer.
+echo.
+goto :error
+
+:python_ok
+
 :: --------------------------------------------------------
 :: Step 2: Install OFX plugin bundle
 :: --------------------------------------------------------
