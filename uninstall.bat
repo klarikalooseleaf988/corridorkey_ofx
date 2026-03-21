@@ -17,6 +17,11 @@ if /i not "%CONFIRM%"=="Y" goto :cancelled
 
 echo.
 
+:: Kill backend processes
+echo   Stopping backend processes...
+taskkill /F /IM python.exe /FI "MODULES eq torch_cpu.dll" >nul 2>&1
+timeout /t 2 /nobreak >nul
+
 :: Remove backend directory
 if not exist "%APPDATA%\CorridorKeyForResolve" goto :no_backend
 echo   Removing backend files...
