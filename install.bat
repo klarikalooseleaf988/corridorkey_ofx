@@ -4,9 +4,6 @@ setlocal enabledelayedexpansion
 :: ============================================================
 :: CorridorKey for Resolve - One-Click Installer
 :: ============================================================
-:: This script installs everything needed to run CorridorKey
-:: in DaVinci Resolve. Just double-click to run.
-::
 :: Requirements: Python 3.10-3.13, NVIDIA GPU with CUDA
 :: ============================================================
 
@@ -16,19 +13,10 @@ echo  CorridorKey for Resolve - Installer
 echo ============================================================
 echo.
 
-:: Check for admin rights, self-elevate if needed
-net session >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Requesting administrator privileges...
-    powershell -Command "Start-Process '%~f0' -Verb RunAs"
-    exit /b
-)
-
-:: Ensure we're in the script's directory (elevation can change cwd)
-cd /d "%~dp0"
+:: Save our directory before anything can change it
+set "INSTALLER_DIR=%~dp0"
 
 :: Configuration
-set "SCRIPT_DIR=%~dp0"
 set "APPDATA_DIR=%APPDATA%\CorridorKeyForResolve"
 set "VENV_DIR=%APPDATA_DIR%\venv"
 set "CK_REPO_DIR=%APPDATA_DIR%\CorridorKey"
@@ -36,13 +24,12 @@ set "OFX_DIR=C:\Program Files\Common Files\OFX\Plugins\CorridorKeyForResolve.ofx
 set "CK_ZIP_URL=https://github.com/nikopueringer/CorridorKey/archive/refs/heads/main.zip"
 
 :: --------------------------------------------------------
-:: Step 1: Find Python
+:: Step 1: Find Python 3.10-3.13
 :: --------------------------------------------------------
 echo [1/5] Finding Python...
 
 set "PYTHON_EXE="
 
-:: Prefer Python 3.13 (3.14+ lacks PyTorch wheels)
 for %%p in (
     "%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
     "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
@@ -55,7 +42,6 @@ for %%p in (
     )
 )
 
-:: Try PATH
 where python >nul 2>&1
 if %errorlevel% equ 0 (
     for /f "delims=" %%p in ('where python') do (
@@ -67,7 +53,7 @@ if %errorlevel% equ 0 (
 echo.
 echo  ERROR: Python not found!
 echo.
-echo  Please install Python 3.10-3.13 from:
+echo  Please install Python 3.13 from:
 echo    https://www.python.org/downloads/release/python-31312/
 echo.
 echo  IMPORTANT: Check "Add Python to PATH" during installation.
@@ -77,11 +63,9 @@ goto :error
 :found_python
 echo   Found: %PYTHON_EXE%
 
-:: Check version
 for /f "tokens=2 delims= " %%v in ('"%PYTHON_EXE%" --version 2^>^&1') do set "PY_VER=%%v"
 echo   Version: %PY_VER%
 
-:: Extract major.minor version and reject 3.14+
 for /f "tokens=1,2 delims=." %%a in ("%PY_VER%") do (
     set "PY_MAJOR=%%a"
     set "PY_MINOR=%%b"
@@ -97,7 +81,7 @@ echo  ERROR: Python %PY_VER% is not supported!
 echo.
 echo  PyTorch requires Python 3.10-3.13.
 echo  Please install Python 3.13 from:
-echo    https://www.python.org/downloads/release/python-31312/release/python-3130/
+echo    https://www.python.org/downloads/release/python-31312/
 echo.
 echo  You do NOT need to uninstall your current Python.
 echo  Just install 3.13 alongside it and re-run this installer.
@@ -107,46 +91,44 @@ goto :error
 :python_ok
 
 :: --------------------------------------------------------
-:: Step 2: Install OFX plugin bundle
+:: Step 2: Install OFX plugin (needs admin)
 :: --------------------------------------------------------
 echo.
 echo [2/5] Installing OFX plugin...
 
-:: Check if pre-built bundle exists in the repo
-if exist "%SCRIPT_DIR%plugin\build\CorridorKeyForResolve.ofx.bundle\Contents\Win64\CorridorKeyForResolve.ofx" (
-    set "BUNDLE_SRC=%SCRIPT_DIR%plugin\build\CorridorKeyForResolve.ofx.bundle"
-    goto :install_bundle
+set "BUNDLE_SRC="
+if exist "%INSTALLER_DIR%plugin\build\CorridorKeyForResolve.ofx.bundle\Contents\Win64\CorridorKeyForResolve.ofx" (
+    set "BUNDLE_SRC=%INSTALLER_DIR%plugin\build\CorridorKeyForResolve.ofx.bundle"
+)
+if exist "%INSTALLER_DIR%CorridorKeyForResolve.ofx.bundle\Contents\Win64\CorridorKeyForResolve.ofx" (
+    set "BUNDLE_SRC=%INSTALLER_DIR%CorridorKeyForResolve.ofx.bundle"
 )
 
-:: Check for release bundle next to this script
-if exist "%SCRIPT_DIR%CorridorKeyForResolve.ofx.bundle\Contents\Win64\CorridorKeyForResolve.ofx" (
-    set "BUNDLE_SRC=%SCRIPT_DIR%CorridorKeyForResolve.ofx.bundle"
-    goto :install_bundle
-)
-
-echo.
-echo  ERROR: OFX plugin bundle not found!
-echo.
-echo  Expected at: %SCRIPT_DIR%CorridorKeyForResolve.ofx.bundle\
-echo.
-echo  Download the latest release from:
-echo    https://github.com/gitcapoom/corridorkey_ofx/releases
-echo.
-echo  Extract the .ofx.bundle folder next to this install.bat and try again.
-echo.
-goto :error
-
-:install_bundle
-if not exist "%OFX_DIR%" mkdir "%OFX_DIR%"
-xcopy /E /Y /Q "%BUNDLE_SRC%" "%OFX_DIR%\" >nul
-if %errorlevel% neq 0 (
+if "%BUNDLE_SRC%"=="" (
     echo.
-    echo  ERROR: Failed to copy OFX plugin.
-    echo  Is DaVinci Resolve running? Close it and try again.
+    echo  ERROR: OFX plugin bundle not found!
+    echo.
+    echo  Download the latest release from:
+    echo    https://github.com/gitcapoom/corridorkey_ofx/releases
     echo.
     goto :error
 )
-echo   Plugin installed to: %OFX_DIR%
+
+:: Use PowerShell to elevate ONLY the copy operation
+echo   Copying plugin to Program Files (may prompt for admin)...
+powershell -Command "Start-Process powershell -ArgumentList '-Command \"Copy-Item -Path \\\"%BUNDLE_SRC%\\\" -Destination \\\"C:\Program Files\Common Files\OFX\Plugins\\\" -Recurse -Force\"' -Verb RunAs -Wait" 2>nul
+
+if exist "%OFX_DIR%\Contents\Win64\CorridorKeyForResolve.ofx" (
+    echo   Plugin installed to: %OFX_DIR%
+) else (
+    echo.
+    echo  ERROR: Failed to install OFX plugin.
+    echo  You may need to close DaVinci Resolve first, or
+    echo  manually copy the bundle to:
+    echo    %OFX_DIR%
+    echo.
+    goto :error
+)
 
 :: --------------------------------------------------------
 :: Step 3: Create virtual environment
@@ -166,20 +148,17 @@ if exist "%VENV_DIR%\Scripts\python.exe" (
     ) else if !VENV_PY_MINOR! lss 10 (
         echo   Existing venv uses Python !VENV_PY_VER! - recreating with 3.13...
         rmdir /S /Q "%VENV_DIR%"
-    ) else (
-        echo   Virtual environment already exists (Python !VENV_PY_VER!).
     )
 )
 
 if exist "%VENV_DIR%\Scripts\python.exe" (
-    echo   Using existing virtual environment.
+    echo   Virtual environment already exists.
 ) else (
     echo   Creating virtual environment...
     "%PYTHON_EXE%" -m venv "%VENV_DIR%"
     if %errorlevel% neq 0 (
         echo.
         echo  ERROR: Failed to create virtual environment.
-        echo  Make sure Python 3.10-3.13 is installed correctly.
         echo.
         goto :error
     )
@@ -194,12 +173,12 @@ set "VENV_PYTHON=%VENV_DIR%\Scripts\python.exe"
 echo.
 echo [4/5] Installing CorridorKey and dependencies...
 echo   This may take several minutes on first install.
-echo.
 
 :: Download CorridorKey
 if exist "%CK_REPO_DIR%\CorridorKeyModule\inference_engine.py" (
     echo   CorridorKey already downloaded.
 ) else (
+    echo.
     echo   Downloading CorridorKey...
     set "CK_ZIP=%APPDATA_DIR%\corridorkey_download.zip"
     powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%CK_ZIP_URL%' -OutFile '!CK_ZIP!'"
@@ -213,7 +192,6 @@ if exist "%CK_REPO_DIR%\CorridorKeyModule\inference_engine.py" (
         echo   ERROR: Failed to extract CorridorKey.
         goto :error
     )
-    :: GitHub zips contain a folder like CorridorKey-main, rename it
     for /d %%d in ("%APPDATA_DIR%\ck_temp\CorridorKey*") do (
         if exist "%CK_REPO_DIR%" rmdir /S /Q "%CK_REPO_DIR%"
         move "%%d" "%CK_REPO_DIR%" >nul
@@ -223,9 +201,9 @@ if exist "%CK_REPO_DIR%\CorridorKeyModule\inference_engine.py" (
     echo   CorridorKey downloaded successfully.
 )
 
-:: Install PyTorch
+:: Install PyTorch with CUDA
 echo.
-echo   Installing PyTorch with CUDA (this is a large download ~2.5GB)...
+echo   Installing PyTorch with CUDA (large download ~2.5GB)...
 echo.
 "%VENV_PYTHON%" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 if %errorlevel% neq 0 (
@@ -240,7 +218,6 @@ if %errorlevel% neq 0 (
     echo    - Corporate firewall blocking download.pytorch.org
     echo.
     echo  Your Python version: %PY_VER%
-    echo  Venv Python: %VENV_PYTHON%
     echo.
     echo  To retry manually, run:
     echo    "%VENV_PYTHON%" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
@@ -249,12 +226,22 @@ if %errorlevel% neq 0 (
     goto :error
 )
 
+:: Verify CUDA is available in the installed PyTorch
+"%VENV_PYTHON%" -c "import torch; assert torch.cuda.is_available(), 'no CUDA'; print(f'  PyTorch {torch.__version__} with CUDA {torch.version.cuda}')" 2>nul
+if %errorlevel% neq 0 (
+    echo.
+    echo  WARNING: PyTorch installed but CUDA is not available.
+    echo  This may mean the CPU-only version was installed.
+    echo  Reinstall with:
+    echo    "%VENV_PYTHON%" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124 --force-reinstall
+    echo.
+)
+
 :: Install Triton (non-critical)
 echo   Installing Triton for torch.compile...
 "%VENV_PYTHON%" -m pip install triton-windows >nul 2>&1
 if %errorlevel% neq 0 (
     echo   Warning: Triton install failed. torch.compile will be slower.
-    echo   You can retry later: "%VENV_PYTHON%" -m pip install triton-windows
 )
 
 :: Install other dependencies
@@ -263,9 +250,6 @@ echo   Installing other dependencies...
 if %errorlevel% neq 0 (
     echo.
     echo  WARNING: Some dependencies failed to install.
-    echo  The plugin may not work correctly.
-    echo  Try running this installer again, or install manually:
-    echo    "%VENV_PYTHON%" -m pip install numpy Pillow opencv-python timm transformers huggingface_hub
     echo.
 )
 
@@ -274,34 +258,30 @@ if %errorlevel% neq 0 (
 :: --------------------------------------------------------
 echo.
 echo [5/5] Installing backend files...
-echo   Looking for backend files in: %SCRIPT_DIR%backend\
 
 set "BACKEND_COPIED=0"
 for %%f in (server.py ipc_protocol.py inference_wrapper.py) do (
-    if exist "%SCRIPT_DIR%backend\%%f" (
-        copy /Y "%SCRIPT_DIR%backend\%%f" "%APPDATA_DIR%\%%f" >nul
+    if exist "%INSTALLER_DIR%backend\%%f" (
+        copy /Y "%INSTALLER_DIR%backend\%%f" "%APPDATA_DIR%\%%f" >nul
         echo   Copied %%f
         set "BACKEND_COPIED=1"
     ) else (
-        echo   WARNING: Not found: %SCRIPT_DIR%backend\%%f
+        echo   WARNING: Not found: %INSTALLER_DIR%backend\%%f
     )
 )
 
 if "%BACKEND_COPIED%"=="0" (
     echo.
     echo  ERROR: No backend files were found!
-    echo  The installer could not find the backend\ folder.
     echo  Make sure install.bat and the backend\ folder are in the same directory.
-    echo  Current script location: %SCRIPT_DIR%
+    echo  Installer location: %INSTALLER_DIR%
     echo.
     goto :error
 )
 
-:: Verify critical file was copied
 if not exist "%APPDATA_DIR%\server.py" (
     echo.
-    echo  ERROR: server.py was not copied to %APPDATA_DIR%
-    echo  Try copying manually from the backend\ folder in the zip.
+    echo  ERROR: server.py was not installed to %APPDATA_DIR%
     echo.
     goto :error
 )
