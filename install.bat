@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal enableextensions
 
 :: ============================================================
 :: CorridorKey for Resolve - One-Click Installer
