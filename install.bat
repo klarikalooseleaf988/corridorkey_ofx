@@ -106,29 +106,27 @@ echo [3/6] Setting up Python environment...
 
 if not exist "%APPDATA_DIR%" mkdir "%APPDATA_DIR%"
 
-:: Check existing venv version
-if exist "%VENV_DIR%\Scripts\python.exe" (
-    for /f "tokens=2 delims= " %%v in ('"%VENV_DIR%\Scripts\python.exe" --version 2^>^&1') do set "VENV_VER=%%v"
-    for /f "tokens=2 delims=." %%m in ("%VENV_VER%") do set "VENV_MINOR=%%m"
-    if %VENV_MINOR% gtr 13 (
-        echo   Existing venv uses Python %VENV_VER% - recreating...
-        rmdir /S /Q "%VENV_DIR%"
-    )
-    if %VENV_MINOR% lss 10 (
-        echo   Existing venv uses Python %VENV_VER% - recreating...
-        rmdir /S /Q "%VENV_DIR%"
-    )
-)
+if not exist "%VENV_DIR%\Scripts\python.exe" goto :create_venv
 
-if exist "%VENV_DIR%\Scripts\python.exe" (
-    echo   Virtual environment exists.
-) else (
-    echo   Creating virtual environment...
-    "%PYTHON_EXE%" -m venv "%VENV_DIR%"
-    if %errorlevel% neq 0 goto :venv_error
-    "%VENV_DIR%\Scripts\python.exe" -m pip install --upgrade pip >nul 2>&1
-)
+:: Check existing venv version - recreate if incompatible
+for /f "tokens=2 delims= " %%v in ('"%VENV_DIR%\Scripts\python.exe" --version 2^>^&1') do set "VENV_VER=%%v"
+for /f "tokens=2 delims=." %%m in ("%VENV_VER%") do set "VENV_MINOR=%%m"
+if %VENV_MINOR% gtr 13 goto :recreate_venv
+if %VENV_MINOR% lss 10 goto :recreate_venv
+echo   Virtual environment exists (Python %VENV_VER%).
+goto :venv_ready
 
+:recreate_venv
+echo   Existing venv uses Python %VENV_VER% - recreating...
+rmdir /S /Q "%VENV_DIR%"
+
+:create_venv
+echo   Creating virtual environment...
+"%PYTHON_EXE%" -m venv "%VENV_DIR%"
+if %errorlevel% neq 0 goto :venv_error
+"%VENV_DIR%\Scripts\python.exe" -m pip install --upgrade pip >nul 2>&1
+
+:venv_ready
 set "PIP=%VENV_DIR%\Scripts\python.exe -m pip"
 goto :venv_ok
 
